@@ -1,5 +1,8 @@
 # DT_6th_team5_carShare
 
+AWS Access Key ID [None]: AKIAXHDEFLPIWQNHYJVU
+AWS Secret Access Key [None]: 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
+
 # waterDispenserRental (정수기 렌탈 서비스)
 
 5팀 정수기 렌탈 서비스 CNA개발 실습을 위한 프로젝트
