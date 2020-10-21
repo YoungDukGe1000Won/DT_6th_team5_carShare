@@ -60,8 +60,8 @@
 ![79684144-2a893200-826a-11ea-9a01-79927d3a0107](https://user-images.githubusercontent.com/42608068/96371393-84789f00-119c-11eb-80d9-ffbcab38ff84.png)
 
 
-## TO-BE 조직 (Vertically-Aligned)
-![제목 없음23](https://user-images.githubusercontent.com/42608068/96586618-34284b00-131c-11eb-89b0-707eaa8eae82.png)
+## [개인] TO-BE 조직 (Vertically-Aligned)
+![image](https://user-images.githubusercontent.com/42608068/96682472-d34c5180-13b3-11eb-932a-d29f7614cc96.png)
 
 
 ## 이벤트스토밍
