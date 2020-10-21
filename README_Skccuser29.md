@@ -148,7 +148,7 @@
 | 기능 | 이벤트 Payload |
 |---|:---:|
 | 1.고객이 공유차 렌탈을 접수한다.</br>2. 결제가 정상적으로 완료되면 접수가 진행된다. (Sync)</br>3. 접수가 완료되면 배송이 시작된다. (Async)</br>4. 배송이 시작되면 접수정보의 상태를 변경한다. (Async)</br>[개인]5. 배송이 완료되면 쿠폰 발행이 시작된다. (Async)</br>6. 쿠폰이 발행되면 접수정보의 상태를 변경한다. (Async)|![image](https://user-images.githubusercontent.com/42608068/96695286-71481800-13c4-11eb-9f72-6db8cf6c9645.png)|
-| 7.고객이 공유차 렌탈을 취소한다.</br>[개인]8. 쿠폰 회수가 정상적으로 완료되면 배송 취소가 진행된다. (Sync)</br>9. 배송 취소가 정상적으로 완료되면 결제 취소가 진행된다. (Sync)</br>10.결제 취소도 정상적으로 이어지면 접수가 최종적으로 취소된다. (Async)|![제목없음21](https://user-images.githubusercontent.com/42608068/96580830-d7289700-1313-11eb-985b-aa1036db3e57.png)|
+| 7.고객이 공유차 렌탈을 취소한다.</br>[개인]8. 쿠폰 회수가 정상적으로 완료되면 배송 취소가 진행된다. (Sync)</br>9. 배송 취소가 정상적으로 완료되면 결제 취소가 진행된다. (Sync)</br>10.결제 취소도 정상적으로 이어지면 접수가 최종적으로 취소된다. (Async)|![image](https://user-images.githubusercontent.com/42608068/96697397-d7359f00-13c6-11eb-806a-95bc5584a03b.png)|
 | 11.고객이 접수 상태를 조회한다.|![제목없음21](https://user-images.githubusercontent.com/42608068/96581350-a5640000-1314-11eb-8336-0474e2d1716b.png)|
 
 ## DDD 의 적용
@@ -187,6 +187,10 @@ spring:
           uri: http://Skccuser29carsharepayment:8080
           predicates:
             - Path=/payments/**,/paymentCancellations/**
+        - id: coupon
+          uri: http://Skccuser29carsharecoupon:8080
+          predicates:
+            - Path=/coupons/**,/couponCancellations/**
 ```
 
 
@@ -231,13 +235,14 @@ public interface PaymentService {
 }
 ```
 ```
-# CouponCancelService.java
+[개인]
+# CouponCancellationService.java
 
-@FeignClient(name="coupon", contextId ="couponCancel", url="${api.coupon.url}", fallback = CouponCancelServiceFallback.class)
-public interface CouponService {
+@FeignClient(name="coupon", url="${api.coupon.url}", fallback = CouponCancellationServiceFallback.class)
+public interface CouponCancellationService {
 
-    @RequestMapping(method= RequestMethod.POST, path="/couponsCancel")
-    public void send(@RequestBody Coupon coupon);
+    @RequestMapping(method= RequestMethod.POST, path="/couponCancellations")
+    public void couponOffer(@RequestBody CouponCancellation couponCancellation);
 
 }
 ```
@@ -260,7 +265,25 @@ public interface CouponService {
             .pay(payment);
     }
 ```
+- 배송취소요청을 받은 직후(@PostPersist) 쿠폰회수를 요청하도록 처리
+```
+[개인]
+#Cancellation.java (Entity)
+ @PostPersist
+    public void onPostPersist(){
+        DeliveryCanceled deliveryCanceled = new DeliveryCanceled();
+        BeanUtils.copyProperties(this, deliveryCanceled);
+        deliveryCanceled.publishAfterCommit();
 
+        skccuser.external.CouponCancellation couponCancellation = new skccuser.external.CouponCancellation();
+        couponCancellation.setOrderId(this.getOrderId());
+        couponCancellation.setPaymentId(this.getPaymentId());
+        couponCancellation.setDeliveryId(this.getId());
+        couponCancellation.setStatus("deliveryCancel");
+        DeliveryApplication.applicationContext.getBean(skccuser.external.CouponCancellationService.class)
+            .couponOffer(couponCancellation);
+    }
+```
 - 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 서비스가 장애가 나면 접수요청 못받는다는 것을 확인
 
 
@@ -279,13 +302,30 @@ mvn spring-boot:run
 http localhost:8081/orders productId=1001 qty=1 status="order"   #Success
 http localhost:8081/orders productId=1002 qty=3 status="order"   #Success
 ```
+```
+[개인]
+#쿠폰(coupon) 서비스를 잠시 내려놓음 (ctrl+c)
+
+#배송취소요청 처리
+http localhost:8082/cancellations orderId=1 paymentId=1 status="deliveryCancel"   #Fail
+http localhost:8082/cancellations orderId=2 paymentId=2 status="deliveryCancel"   #Fail
+
+#쿠폰 서비스 재기동
+cd skcc29carsharecoupon
+mvn spring-boot:run
+
+#배송취소요청 처리 성공
+http localhost:8082/cancellations orderId=1 paymentId=1 status="deliveryCancel"   #Success
+http localhost:8082/cancellations orderId=2 paymentId=2 status="deliveryCancel"   #Success
+```
 
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, Fallback 처리는 운영단계에서 설명한다.)
 
 
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
-결제가 이루어진 후에 배송 서비스로 이를 알려주는 행위는 동기식이 아니라 비동기식으로 처리하여 배송 시스템의 처리를 위해 결제가 블로킹되지 않도록 처리한다.
+결제가 이루어진 후에 배송 서비스로 이를 알려주는 행위는 동기식이 아니라 비동기식으로 처리하여 배송 서비스의 처리를 위해 결제가 블로킹되지 않도록 처리한다.
+[개인] 배송이 이루어진 후에 쿠폰 서비스로 이를 알려주는 행위는 동기식이 아니라 비동기식으로 처리하여 쿠폰 서비스의 처리를 위해 결제가 블로킹되지 않도록 처리한다.
  
 - 이를 위하여 결제이력 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
  
@@ -305,8 +345,26 @@ public class Payment {
     }
 }
 ```
-- 배송 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다
+- [개인] 이를 위하여 발송이력 기록을 남긴 후에 곧바로 발송승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
 
+```
+package skccuser;
+
+@Entity
+@Table(name="Delivery_table")
+public class Delivery {
+
+...
+    @PostPersist
+    public void onPostPersist(){
+        Shipped shipped = new Shipped();
+        BeanUtils.copyProperties(this, shipped);
+        shipped.publishAfterCommit();
+    }
+}
+```
+
+- 배송 서비스에서는 결제승인 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다
 ```
 package carshare;
 
@@ -332,6 +390,34 @@ public class PolicyHandler{
 
 ```
 
+- 쿠폰 서비스에서는 배송완료 이벤트에 대해서 이를 수신하여 자신의 정책을 처리하도록 PolicyHandler 를 구현한다
+```
+package skccuser;
+
+...
+
+@Service
+public class PolicyHandler{
+
+   @StreamListener(KafkaProcessor.INPUT)
+    public void wheneverShipped_CouponCancel(@Payload Shipped shipped){
+
+        if(shipped.isMe()){
+            Coupon coupon = new Coupon();
+            coupon.setOrderId(shipped.getOrderId());
+            coupon.setPaymentId(shipped.getPaymentId());
+            coupon.setDeliveryId(shipped.getId());
+            coupon.setStatus("offered");
+
+            couponRepository.save(coupon) ;
+        }
+    }
+
+}
+
+```
+
+
 배송 서비스는 접수/결제 서비스와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 배송 서비스가 유지보수로 인해 잠시 내려간 상태라도 접수신청을 받는데 문제가 없다.
 
 ```
@@ -351,6 +437,27 @@ mvn spring-boot:run
 #접수상태 확인
 http localhost:8081/orders     # 접수상태가 "shipped(배송됨)"으로 확인
 ```
+
+[개인] 쿠폰 서비스는 배송 서비스와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 쿠폰 서비스가 유지보수로 인해 잠시 내려간 상태라도 배송신청을 받는데 문제가 없다.
+
+```
+#쿠폰(coupon) 서비스를 잠시 내려놓음 (ctrl+c)
+
+#배송요청 처리
+http localhost:8082/deliveries orderId=1 productId=1 status="paid"   #Success
+http localhost:8082/deliveries orderId=2 productId=4 status="paid"   #Success
+
+#접수상태 확인
+http localhost:8081/orders     # 주문상태 안바뀜 확인
+
+#쿠폰 서비스 기동
+cd skcc29carsharecoupon
+mvn spring-boot:run
+
+#접수상태 확인
+http localhost:8081/orders     # 접수상태가 "offered(쿠폰발행됨)"으로 확인
+```
+
 
 # 운영
 
