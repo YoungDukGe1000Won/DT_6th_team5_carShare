@@ -134,8 +134,8 @@
     - 고객은 본인의 상태 정보를 확인할 수 있다 > CQRS
     - [개인] 고객은 본인의 쿠폰 발행 상태 정보를 확인할 수 있다 > CQRS
 
-## 헥사고날 아키텍처 다이어그램 도출
-![제목없음21](https://user-images.githubusercontent.com/42608068/96549943-260e0680-12eb-11eb-8119-394cb324883d.png)
+## [개인] 헥사고날 아키텍처 다이어그램 도출
+![image](https://user-images.githubusercontent.com/42608068/96682973-84eb8280-13b4-11eb-9251-1d0792f08603.png)
 
     - Chris Richardson, MSA Patterns 참고하여 Inbound adaptor와 Outbound adaptor를 구분함
     - 호출관계에서 PubSub 과 Req/Resp 를 구분함
