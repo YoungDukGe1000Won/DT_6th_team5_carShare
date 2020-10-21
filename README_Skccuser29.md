@@ -96,24 +96,27 @@
 ### 폴리시의 이동과 컨텍스트 매핑 (점선은 Pub/Sub, 실선은 Req/Resp)
 ![제목 없음7](https://user-images.githubusercontent.com/42608068/96541279-a11af100-12da-11eb-9d0d-3cf209f7216b.png)
 
-### 완성된 모형
+### [개인] 완성된 모형
 ![image](https://user-images.githubusercontent.com/42608068/96680713-004b3500-13b1-11eb-813e-5b6e332108e4.png)
 
-### 완성본에 대한 기능적 요구사항을 커버하는지 검증 + [개인]
+### 완성본에 대한 기능적 요구사항을 커버하는지 검증
 ![제목 없음12](https://user-images.githubusercontent.com/42608068/96543922-72077e00-12e0-11eb-91bf-ae6aaf5e8fbb.png)
     
     - 고객이 공유차를 선택하여 렌탈한다 (ok)
     - 고객이 결제하여 접수한다 (ok)
     - 업체가 공유차를 고객위치로 가져다놓는다 (ok)
+    - [개인] 배송이 완료된 고객에 대해 쿠폰을 발행한다 (ok)
 
 ![제목 없음13](https://user-images.githubusercontent.com/42608068/96543936-79c72280-12e0-11eb-98a2-0c67478f6926.png)
 
     - 고객이 주문을 취소할 수 있다 (ok)
     - 렌탈이 취소되면 배송이 취소된다 (ok)
+    - [개인] 배송이 취소된 고객에 대해 쿠폰을 회수한다 (ok)
 
 ![제목 없음14](https://user-images.githubusercontent.com/42608068/96543997-9cf1d200-12e0-11eb-9a71-9aa743f7de44.png)
    
     - 고객이 자신의 렌탈 정보를 조회한다 (ok)
+    - [개인] 고객이 자신의 쿠폰 정보를 조회한다 (ok)
     
 ### 완성본에 대한 비기능적 요구사항을 커버하는지 검증
 ![제목없음22](https://user-images.githubusercontent.com/42608068/96582783-c2013780-1316-11eb-8bfc-dba64c7af837.png)
@@ -121,11 +124,15 @@
     1. 트랜잭션
     - 고객의 주문에 따라 결제가 진행된다(결제가 정상적으로 완료되지 않으면 주문이 되지 않는다) > Sync
     - 고객의 결제 완료에 따라 배송이 진행된다 > Async
+    - [개인] 배송취소에 따라 쿠폰 회수가 진행된다(쿠폰이 정상적으로 회수되지 않으면 배송이 취소 되지 않는다) > Sync
+    - [개인] 배송완료에 따라 쿠폰 발행이 진행된다 > Async
     2. 장애격리
     - 배송 서비스에 장애가 발생하더라도 주문 및 결제는 정상적으로 처리 가능하다 > Async(event driven)
+    - [개인] 쿠폰 서비스에 장애가 발생하더라도 배송은 정상적으로 처리 가능하다 > Async(event driven)
     - 서킷 브레이킹 프레임워크 > istio-injection + DestinationRule
     3. 성능
     - 고객은 본인의 상태 정보를 확인할 수 있다 > CQRS
+    - [개인] 고객은 본인의 쿠폰 발행 상태 정보를 확인할 수 있다 > CQRS
 
 ## 헥사고날 아키텍처 다이어그램 도출
 ![제목없음21](https://user-images.githubusercontent.com/42608068/96549943-260e0680-12eb-11eb-8119-394cb324883d.png)
@@ -150,10 +157,11 @@
 
 | MSA | 기능 | port | 조회 API | Gateway 사용시 |
 |---|:---:|:---:|---|---|
-| order | 접수 관리 | 8081 | http://localhost:8081/orders |http://carshareorder:8080/orders |
-| delivery | 배송 관리 | 8082 | http://localhost:8082/deliveries | http://carsharedelivery:8080/deliveries |
-| customerpage | 상태 조회 | 8083 | http://localhost:8083/customerpages | http://carsharestatusview:8080/customerpages |
-| payment | 결제 관리 | 8084 | http://localhost:8084/payments | http://carsharepayment:8080/payments |
+| order | 접수 관리 | 8081 | http://localhost:8081/orders |http://Skccuser29carshareorder:8080/orders |
+| delivery | 배송 관리 | 8082 | http://localhost:8082/deliveries | http://Skccuser29carsharedelivery:8080/deliveries |
+| customerpage | 상태 조회 | 8083 | http://localhost:8083/customerpages | http://Skccuser29carsharestatusview:8080/customerpages |
+| payment | 결제 관리 | 8084 | http://localhost:8084/payments | http://Skccuser29carsharepayment:8080/payments |
+| coupon | 쿠폰 관리 | 8085 | http://localhost:8084/coupons | http://Skccuser29carsharepayment:8080/coupons |
 
 ## Gateway 적용
 
@@ -164,19 +172,19 @@ spring:
     gateway:
       routes:
         - id: order
-          uri: http://carshareorder:8080
+          uri: http://Skccuser29carshareorder:8080
           predicates:
             - Path=/orders/** 
         - id: delivery
-          uri: http://carsharedelivery:8080
+          uri: http://Skccuser29carsharedelivery:8080
           predicates:
             - Path=/deliveries/**,/cancellations/**
         - id: statusview
-          uri: http://carsharestatusview:8080
+          uri: http://Skccuser29carsharestatusview:8080
           predicates:
             - Path= /customerpages/**
         - id: payment
-          uri: http://carsharepayment:8080
+          uri: http://Skccuser29carsharepayment:8080
           predicates:
             - Path=/payments/**,/paymentCancellations/**
 ```
@@ -184,7 +192,8 @@ spring:
 
 ## 폴리글랏 퍼시스턴스
 
-CQRS 를 위한 customerpage 서비스만 DB를 구분하여 적용함. 인메모리 DB인 hsqldb 사용.
+CQRS 를 위한 customerpage 서비스 DB를 구분하여 적용함. 인메모리 DB인 hsqldb 사용.
+[개인] CQRS 를 위한 쿠폰관리 서비스 DB를 구분하여 적용함. 인메모리 DB인 hsqldb 사용.
 
 ```
 pom.xml 에 적용
@@ -207,6 +216,7 @@ pom.xml 에 적용
 ## 동기식 호출 과 Fallback 처리
 
 분석단계에서의 조건 중 하나로 접수(order)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다.
+[개인] 분석단계에서의 조건 중 하나로 배송취소(deliveryCancel)->쿠폰회수(couponCancel) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다.
 - FeignClient 서비스 구현
 
 ```
@@ -217,6 +227,17 @@ public interface PaymentService {
 
     @RequestMapping(method= RequestMethod.POST, path="/payments")
     public void pay(@RequestBody Payment payment);
+
+}
+```
+```
+# CouponCancelService.java
+
+@FeignClient(name="coupon", contextId ="couponCancel", url="${api.coupon.url}", fallback = CouponCancelServiceFallback.class)
+public interface CouponService {
+
+    @RequestMapping(method= RequestMethod.POST, path="/couponsCancel")
+    public void send(@RequestBody Coupon coupon);
 
 }
 ```
