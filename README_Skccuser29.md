@@ -64,9 +64,9 @@
 ![image](https://user-images.githubusercontent.com/42608068/96682472-d34c5180-13b3-11eb-932a-d29f7614cc96.png)
 
 
-## 이벤트스토밍
+## [개인] 이벤트스토밍
 * MSAEz 로 모델링한 이벤트스토밍 결과:  
-![image](https://user-images.githubusercontent.com/42608068/96539757-c9085580-12d6-11eb-8721-8bb7e0601d53.png)
+![image](https://user-images.githubusercontent.com/42608068/96685988-dac22980-13b8-11eb-99dd-a18bba72bd3e.png)
 
 ### 이벤트 도출 
 ![제목 없음1](https://user-images.githubusercontent.com/42608068/96541160-60bb7300-12da-11eb-8eda-4beb637fa24f.png)
