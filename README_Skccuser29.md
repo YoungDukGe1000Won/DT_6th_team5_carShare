@@ -3,12 +3,12 @@
 5팀 자동차 공유 서비스 CNA개발 실습을 위한 프로젝트
 
 # 구현 Repository
- 1. 접수관리 : https://github.com/YoungDukGe1000Won/carShareOrder.git
- 1. 결제관리 : https://github.com/YoungDukGe1000Won/carSharePayment.git
- 1. 배송관리 : https://github.com/YoungDukGe1000Won/carShareDelivery.git
- 1. 고객페이지 : https://github.com/YoungDukGe1000Won/carShareStatusview.git
- 1. 게이트웨이 : https://github.com/YoungDukGe1000Won/carShareGateway.git
-
+ 1. 접수관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareOrder.git
+ 1. 결제관리 : https://github.com/YoungDukGe1000Won/Skccuser29carSharePayment.git
+ 1. 배송관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareDelivery.git
+ 1. 고객페이지 : https://github.com/YoungDukGe1000Won/Skccuser29carShareStatusview.git
+ 1. 게이트웨이 : https://github.com/YoungDukGe1000Won/Skccuser29carShareGateway.git
+ 1. 쿠폰관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareCoupon.git
 
 # Table of contents
 
@@ -37,13 +37,18 @@
 1. 고객이 렌탈을 취소할 수 있다.
 1. 렌탈이 취소되면 배송이 취소된다.
 1. 고객이 자신의 렌탈 정보를 조회한다.
+1. [개인] 배송이 완료된 고객에 대해 쿠폰을 발행한다. 
+1. [개인] 배송이 취소된 고객에 대해 쿠폰을 환수한다.
 
 ## 비기능적 요구사항
 1. 트랜잭션
     1. 결제가 되지 않은 주문건은 아예 접수가 성립되지 않아야 한다(Sync 호출)
+    1. [개인] 쿠폰환수가 되지 않은 주문건은 배송취소가 되지 않아야 한다(Sync 호출) 
 1. 장애격리
     1. 배송관리 기능이 수행되지 않더라도 접수는 정상적으로 처리 가능하다(Async(event-driven), Eventual Consistency)
     1. 접수시스템이 과중되면 사용자를 잠시동안 받지 않고 결제를 잠시후에 하도록 유도한다(Circuit breaker, fallback)
+    1. [개인] 쿠폰관리 기능이 수행되지 않더라도 배송은 정상적으로 처리 가능하다(Async(event-driven), Eventual Consistency)
+    1. [개인] 쿠폰관리 시스템이 과중되면 사용자를 잠시동안 받지 않고 잠시후에 쿠폰을 발행하도록 유도한다(Circuit breaker, fallback) 
 1. 성능
     1. 고객이 본인의 렌탈 상태 및 이력을 접수시스템에서 확인할 수 있어야 한다(CQRS)
 
@@ -91,9 +96,9 @@
 ![제목 없음7](https://user-images.githubusercontent.com/42608068/96541279-a11af100-12da-11eb-9d0d-3cf209f7216b.png)
 
 ### 완성된 모형
-![제목 없음11](https://user-images.githubusercontent.com/42608068/96543764-0b826000-12e0-11eb-9296-112459a6027b.png)
+![image](https://user-images.githubusercontent.com/42608068/96680713-004b3500-13b1-11eb-813e-5b6e332108e4.png)
 
-### 완성본에 대한 기능적 요구사항을 커버하는지 검증
+### 완성본에 대한 기능적 요구사항을 커버하는지 검증 + [개인]
 ![제목 없음12](https://user-images.githubusercontent.com/42608068/96543922-72077e00-12e0-11eb-91bf-ae6aaf5e8fbb.png)
     
     - 고객이 공유차를 선택하여 렌탈한다 (ok)
