@@ -8,7 +8,7 @@
  1. 배송관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareDelivery.git
  1. 고객페이지 : https://github.com/YoungDukGe1000Won/Skccuser29carShareStatusview.git
  1. 게이트웨이 : https://github.com/YoungDukGe1000Won/Skccuser29carShareGateway.git
- 1. 쿠폰관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareCoupon.git
+ 1. [개인] 쿠폰관리 : https://github.com/YoungDukGe1000Won/Skccuser29carShareCoupon.git
 
 # Table of contents
 
