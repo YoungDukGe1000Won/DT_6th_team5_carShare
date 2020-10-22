@@ -149,7 +149,7 @@
 |---|:---:|
 | 1.고객이 공유차 렌탈을 접수한다.</br>2. 결제가 정상적으로 완료되면 접수가 진행된다. (Sync)</br>3. 접수가 완료되면 배송이 시작된다. (Async)</br>4. 배송이 시작되면 접수정보의 상태를 변경한다. (Async)</br>[개인]5. 배송이 완료되면 쿠폰 발행이 시작된다. (Async)</br>6. 쿠폰이 발행되면 접수정보의 상태를 변경한다. (Async)|![image](https://user-images.githubusercontent.com/42608068/96695286-71481800-13c4-11eb-9f72-6db8cf6c9645.png)|
 | 7.고객이 공유차 렌탈을 취소한다.</br>[개인]8. 쿠폰 회수가 정상적으로 완료되면 배송 취소가 진행된다. (Sync)</br>9. 배송 취소가 정상적으로 완료되면 결제 취소가 진행된다. (Sync)</br>10.결제 취소도 정상적으로 이어지면 접수가 최종적으로 취소된다. (Async)|![image](https://user-images.githubusercontent.com/42608068/96697397-d7359f00-13c6-11eb-806a-95bc5584a03b.png)|
-| 11.고객이 접수 상태를 조회한다.|![제목없음21](https://user-images.githubusercontent.com/42608068/96581350-a5640000-1314-11eb-8336-0474e2d1716b.png)|
+| 11.고객이 접수 상태를 조회한다.|![image](https://user-images.githubusercontent.com/42608068/96839432-27266b80-1484-11eb-9c3b-8f934bebb380.png)|
 
 ## DDD 의 적용
 분석/설계 단계에서 도출된 MSA는 총 5개로 아래와 같다.
