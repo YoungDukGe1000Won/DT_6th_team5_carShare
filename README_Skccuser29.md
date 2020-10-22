@@ -172,23 +172,23 @@ spring:
     gateway:
       routes:
         - id: order
-          uri: http://Skccuser29carshareorder:8080
+          uri: http://user29carshareorder:8080
           predicates:
             - Path=/orders/** 
         - id: delivery
-          uri: http://Skccuser29carsharedelivery:8080
+          uri: http://user29carsharedelivery:8080
           predicates:
             - Path=/deliveries/**,/cancellations/**
         - id: statusview
-          uri: http://Skccuser29carsharestatusview:8080
+          uri: http://user29carsharestatusview:8080
           predicates:
             - Path= /customerpages/**
         - id: payment
-          uri: http://Skccuser29carsharepayment:8080
+          uri: http://user29carsharepayment:8080
           predicates:
             - Path=/payments/**,/paymentCancellations/**
         - id: coupon
-          uri: http://Skccuser29carsharecoupon:8080
+          uri: http://user29carsharecoupon:8080
           predicates:
             - Path=/coupons/**,/couponCancellations/**
 ```
@@ -311,7 +311,7 @@ http localhost:8082/cancellations orderId=1 paymentId=1 status="deliveryCancel" 
 http localhost:8082/cancellations orderId=2 paymentId=2 status="deliveryCancel"   #Fail
 
 #쿠폰 서비스 재기동
-cd skcc29carsharecoupon
+cd user29carsharecoupon
 mvn spring-boot:run
 
 #배송취소요청 처리 성공
@@ -451,7 +451,7 @@ http localhost:8082/deliveries orderId=2 productId=4 status="paid"   #Success
 http localhost:8081/orders     # 주문상태 안바뀜 확인
 
 #쿠폰 서비스 기동
-cd skcc29carsharecoupon
+cd user29carsharecoupon
 mvn spring-boot:run
 
 #접수상태 확인
@@ -472,49 +472,182 @@ Git Hook 설정으로 연결된 GitHub의 소스 변경 발생 시 자동 배포
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
-### 서킷 브레이킹 istio-injection + DestinationRule
+### 서킷 브레이킹
 
-* istio-injection 적용 (기 적용완료)
+* 서킷 브레이커 pending time 설정 변경
 ```
-kubectl label namespace carshare istio-injection=enabled 
+kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: coupon
+  namespace: skccuser29carshare
+spec:
+  host: user29carsharecoupon
+  trafficPolicy:
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 1
+        maxRequestsPerConnection: 1
+    outlierDetection:
+      interval: 1s
+      consecutiveErrors: 2
+      baseEjectionTime: 10s
+      maxEjectionPercent: 100
+EOF
 ```
-
-* 서킷 브레이커 pending time 설정
-![image](https://user-images.githubusercontent.com/70302900/96588904-27592680-131f-11eb-94dc-2b61b67c3ce2.png)
-
 
 * 부하테스트 툴(Siege) 설치 및 Order 서비스 Load Testing 
   - 동시 사용자 5명
   - 2초 실행 
-![image](https://user-images.githubusercontent.com/70302900/96588949-38099c80-131f-11eb-9e37-5f1846fca268.png)
-
-
-* 키알리(kiali)화면에 서킷브레이커 동작 확인
-![image](https://user-images.githubusercontent.com/70302900/96589002-46f04f00-131f-11eb-92b7-dd13ce203382.png)
+```
+root@siege-5c7c46b788-z47lb:/# siege -c5 -t2S -v http://a57016fa5c6b54052ae0192f630c1851-418262153.ap-northeast-1.elb.amazonaws.com:8080/coupons
+** SIEGE 4.0.4
+** Preparing 5 concurrent users for battle.
+The server is now under siege...
+HTTP/1.1 503     0.06 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.06 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.07 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 200     0.08 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.09 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.05 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.06 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.04 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.08 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.05 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.05 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.05 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 503     0.04 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 200     0.05 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.07 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+                          .
+			  .
+			  .
+Lifting the server siege...
+Transactions:                    121 hits
+Availability:                  70.76 %
+Elapsed time:                   1.56 secs
+Data transferred:               0.05 MB
+Response time:                  0.06 secs
+Transaction rate:              77.56 trans/sec
+Throughput:                     0.03 MB/sec
+Concurrency:                    4.94
+Successful transactions:         121
+Failed transactions:              50
+Longest transaction:            0.11
+Shortest transaction:           0.01
+```
 
 
 ### 오토스케일 아웃
 앞서 CB 는 시스템을 안정되게 운영할 수 있게 해줬지만 사용자의 요청을 100% 받아들여주지 못했기 때문에 이에 대한 보완책으로 자동화된 확장 기능을 적용하고자 한다. 
 
 - Deployment 배포시 resource 설정 적용
-![image](https://user-images.githubusercontent.com/42608068/96592913-e44d8200-1323-11eb-8d94-386116ecaf2c.png)
+```
+    spec:
+      containers:
+          ...
+          resources:
+            limits:
+              cpu: 500m 
+            requests:
+              cpu: 200m 
+```
 
 - replica 를 동적으로 늘려주도록 HPA 를 설정한다. 설정은 CPU 사용량이 5프로를 넘어서면 replica 를 10개까지 늘려준다
-![image](https://user-images.githubusercontent.com/42608068/96592628-8de04380-1323-11eb-8288-2288a9e189ec.png)
+```
+kubectl autoscale deploy user29carsharecoupon -n skccuser29carshare --min=1 --max=10 --cpu-percent=5
+
+NAME                                                       REFERENCE                         TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/user29carsharecoupon   Deployment/user29carsharecoupon   1%/5%           1         10        0          101m
+```
+
 - 오토스케일이 어떻게 되고 있는지 HPA 모니터링을 걸어둔다, 어느정도 시간이 흐른 후, 스케일 아웃이 벌어지는 것을 확인할 수 있다
-![image](https://user-images.githubusercontent.com/16017769/96661016-17c0f880-1386-11eb-86a9-6788ba45bd1a.png)
-- kubectl get으로 HPA을 확인하면 CPU 사용률이 135%로 증가됐다.
-![image](https://user-images.githubusercontent.com/16017769/96661066-30311300-1386-11eb-8d6c-7b6e2f67f83a.png)
+```
+kubectl get deploy user29carsharecoupon -n skccuser29carshare -w 
+
+NAME                   READY   UP-TO-DATE   AVAILABLE   AGE
+user29carsharecoupon   1/1     1            1           20m
+user29carsharecoupon   1/4     1            1           20m
+user29carsharecoupon   1/4     1            1           20m
+user29carsharecoupon   1/4     1            1           20m
+user29carsharecoupon   1/4     4            1           20m
+user29carsharecoupon   1/5     4            1           20m
+user29carsharecoupon   1/5     4            1           20m
+user29carsharecoupon   1/5     4            1           20m
+user29carsharecoupon   1/10    8            1           20m
+```
+- kubectl get으로 HPA을 확인하면 CPU 사용률이 121%로 증가됐다.
+```
+NAME                                                       REFERENCE                         TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/user29carsharecoupon   Deployment/user29carsharecoupon   121%/5%         1         10        0          101m
+```
 
 ## 무정지 재배포
-- Readiness Probe 및 Liveness Probe 설정(buildspec.yml 설정)
+먼저 무정지 재배포가 100% 되는 것인지 확인하기 위해서 Autoscaler, 서킷 브레이킹 설정을 제거함 Readiness Probe 미설정 시 무정지 재배포 가능여부 확인을 위해 buildspec.yml의 Readiness Probe 설정을 제거함
 
-![image](https://user-images.githubusercontent.com/42608068/96593140-24146980-1324-11eb-88d5-7dee61001832.png)
+- CI/CD 파이프라인을 통해 새버전으로 재배포 작업함 Git hook 연동 설정되어 Github의 소스 변경 발생 시 자동 빌드 배포되며, siege 모니터링 툴로 재배포 작업 중 서비스 중단됨을 확인(503 에러 발생)
+배포기간중 Availability 가 평소 100%에서 80% 대로 떨어지는 것을 확인. 원인은 쿠버네티스가 성급하게 새로 올려진 서비스를 READY 상태로 인식하여 서비스 유입을 진행한 것이기 때문으로 판단됨.
+```
+HTTP/1.1 200     0.04 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 200     0.06 secs:     377 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.05 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.05 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.07 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+HTTP/1.1 503     0.03 secs:      81 bytes ==> GET  /coupons
+                          .
+			  .
+			  .
+Lifting the server siege...
+Transactions:                    218 hits
+Availability:                  80.76 %
+Elapsed time:                  10.22 secs
+Data transferred:               0.05 MB
+Response time:                  0.06 secs
+Transaction rate:              71.26 trans/sec
+Throughput:                     0.00 MB/sec
+Concurrency:                    1.01
+Successful transactions:         175
+Failed transactions:              43
+Longest transaction:            1.20
+Shortest transaction:           0.01
 
-### Readiness Probe 설정
-- CI/CD 파이프라인을 통해 새버전으로 재배포 작업함 Git hook 연동 설정되어 Github의 소스 변경 발생 시 자동 빌드 배포됨
-![image](https://user-images.githubusercontent.com/16017769/96661148-5c4c9400-1386-11eb-8f4f-9b83cab19b8c.png)
+```
 
+- 이를 막기위해 Readiness Probe 설정함(buildspec.yml 설정)
+```
+		  readinessProbe:
+                    httpGet:
+                      path: /
+                      port: 8080
+                    initialDelaySeconds: 30
+                    timeoutSeconds: 2
+                    periodSeconds: 5
+                    failureThreshold: 10
+```
+
+- 동일한 시나리오로 재배포 한 후 Availability 확인: 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+```
+Lifting the server siege...
+Transactions:                     74 hits
+Availability:                 100.00 %
+Elapsed time:                   1.93 secs
+Data transferred:               0.03 MB
+Response time:                  0.13 secs
+Transaction rate:              38.34 trans/sec
+Throughput:                     0.01 MB/sec
+Concurrency:                    4.88
+Successful transactions:          74
+Failed transactions:               0
+Longest transaction:            1.10
+Shortest transaction:           0.03
+```
 
 ## Liveness Probe
 - pod 삭제
@@ -537,9 +670,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: my-config
-  namespace: carshare
+  namespace: skccuser29carshare
 data:
-  api.payment.url: http://carsharepayment:8080
+  api.coupon.url: http://user29carsharecoupon:8080
 ```
 my-config라는 ConfigMap을 생성하고 key값에 도메인 url을 등록한다. 
 
@@ -573,32 +706,32 @@ my-config라는 ConfigMap을 생성하고 key값에 도메인 url을 등록한�
                       valueFrom:
                         configMapKeyRef:
                           name: my-config
-                          key: api.payment.url
+                          key: api.coupon.url
                   imagePullPolicy: Always
                 
         EOF
 ```
 Deployment yaml에 해단 configMap 적용
 
-* PaymentService.java
+* CouponCancellationService.java
 ```
-@FeignClient(name="payment", contextId = "payment", url="${api.payment.url}")
-public interface PaymentService {
+@FeignClient(name="coupon", url="${api.coupon.url}")
+public interface CouponCancellationService {
 
-    @RequestMapping(method= RequestMethod.POST, path="/payments")
-    public void pay(@RequestBody Payment payment);
+    @RequestMapping(method= RequestMethod.POST, path="/couponCancellations")
+    public void couponOffer(@RequestBody CouponCancellation couponCancellation);
 
 }
 ```
 url에 configMap 적용
 
-* kubectl describe pod carshareorder-bdd8c8c4c-l52h6  -n carshare
+* kubectl describe pod user29carsharecoupon-bdd8c8c4c-l52h6  -n skccuser29carshare
 ```
 Containers:
   carshareorder:
     Container ID:   docker://f3c983b12a4478f3b4a7ee5d7fea308638903eb62e0941edd33a3bce5f5f6513
-    Image:          496278789073.dkr.ecr.ap-southeast-2.amazonaws.com/carshareorder:9289bba10d5b0758ae9f6279d56ff77b818b8b63
-    Image ID:       docker-pullable://496278789073.dkr.ecr.ap-southeast-2.amazonaws.com/carshareorder@sha256:95395c95d1bc19ceae8eb5cc0b288b38dc439359a084610f328407dacd694a81
+    Image:          496278789073.dkr.ecr.ap-southeast-1.amazonaws.com/carshareorder:9289bba10d5b0758ae9f6279d56ff77b818b8b63
+    Image ID:       docker-pullable://496278789073.dkr.ecr.ap-southeast-1.amazonaws.com/carshareorder@sha256:95395c95d1bc19ceae8eb5cc0b288b38dc439359a084610f328407dacd694a81
     Port:           8080/TCP
     Host Port:      0/TCP
     State:          Running
@@ -612,7 +745,7 @@ Containers:
     Liveness:     http-get http://:8080/ delay=120s timeout=2s period=5s #success=1 #failure=5
     Readiness:    http-get http://:8080/ delay=30s timeout=2s period=5s #success=1 #failure=10
     Environment:
-      api.payment.url:  <set to the key 'api.payment.url' of config map 'my-config'>  Optional: false
+      api.coupon.url:  <set to the key 'api.coupon.url' of config map 'my-config'>  Optional: false
     Mounts:
       /var/run/secrets/kubernetes.io/serviceaccount from default-token-5gx6w (ro)
 
